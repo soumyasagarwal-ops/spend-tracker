@@ -10,9 +10,14 @@ interface Props {
   isLoading: boolean;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface PieTooltipProps {
+  active?: boolean;
+  payload?: { payload: CategorySpend }[];
+}
+
+const CustomTooltip = ({ active, payload }: PieTooltipProps) => {
   if (active && payload?.length) {
-    const d = payload[0].payload as CategorySpend;
+    const d = payload[0].payload;
     return (
       <div className="bg-white border border-slate-100 rounded-xl px-4 py-3 shadow-lg text-sm">
         <p className="font-semibold text-slate-800 mb-0.5">{d.category}</p>

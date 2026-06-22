@@ -15,6 +15,8 @@ const ACCEPTED_FORMATS = [
   { ext: 'XLSX', desc: 'Excel workbook' },
 ];
 
+const ALLOWED_EXTS = ['.csv', '.xls', '.xlsx'];
+
 export default function FileUploadModal({ onClose }: Props) {
   const [result, setResult] = useState<IngestLog | null>(null);
   const [extError, setExtError] = useState(false);
@@ -35,8 +37,6 @@ export default function FileUploadModal({ onClose }: Props) {
       qc.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
-
-  const ALLOWED_EXTS = ['.csv', '.xls', '.xlsx'];
 
   const onDrop = useCallback((files: File[]) => {
     const file = files[0];

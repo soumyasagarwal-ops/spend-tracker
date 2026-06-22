@@ -10,6 +10,7 @@ export interface DateRange {
 const today = () => new Date();
 const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const PRESETS: DateRange[] = [
   { label: 'All Time' },
   {

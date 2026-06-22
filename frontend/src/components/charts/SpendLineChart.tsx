@@ -11,11 +11,17 @@ interface Props {
   title: string;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface LineTooltipProps {
+  active?: boolean;
+  payload?: { value: number }[];
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: LineTooltipProps) => {
   if (active && payload?.length) {
     return (
       <div className="bg-white border border-slate-100 rounded-xl px-4 py-3 shadow-lg text-sm">
-        <p className="text-slate-400 text-xs mb-1">{formatMonthLabel(label)}</p>
+        <p className="text-slate-400 text-xs mb-1">{formatMonthLabel(label ?? '')}</p>
         <p className="font-bold text-slate-800 text-base">{formatCurrency(payload[0].value)}</p>
       </div>
     );

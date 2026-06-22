@@ -34,7 +34,6 @@ export default function Categories() {
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createColor, setCreateColor] = useState('#6366f1');
-  const [saving, setSaving] = useState(false);
 
   function selectCategory(cat: Category) {
     setSelected(cat);
@@ -61,10 +60,12 @@ export default function Categories() {
   useEffect(() => {
     if (!selected && !showCreate && categories.length) {
       const c = categories[0];
+      /* eslint-disable react-hooks/set-state-in-effect */
       setSelected(c);
       setEditName(c.name);
       setEditColor(c.color);
       setEditKeywords([...c.keywords]);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [categories, selected, showCreate]);
 
@@ -74,7 +75,6 @@ export default function Categories() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['categories'] });
       qc.invalidateQueries({ queryKey: ['analytics'] });
-      setSaving(false);
     },
   });
 
@@ -271,7 +271,7 @@ export default function Categories() {
                 {/* Actions */}
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => { setSaving(true); saveCategory.mutate(); }}
+                    onClick={() => saveCategory.mutate()}
                     disabled={saveCategory.isPending}
                     className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-60 transition-colors"
                   >

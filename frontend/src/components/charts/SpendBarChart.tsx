@@ -12,7 +12,13 @@ interface Props {
   title: string;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface BarTooltipProps {
+  active?: boolean;
+  payload?: { value: number }[];
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: BarTooltipProps) => {
   if (active && payload?.length) {
     return (
       <div className="bg-white border border-slate-100 rounded-xl px-4 py-3 shadow-lg text-sm">
@@ -121,6 +127,7 @@ export default function SpendBarChart({ data, isLoading, title }: Props) {
               axisLine={false}
               width={44}
             />
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc', radius: 6 } as any} />
             <Bar dataKey="total" radius={[5, 5, 0, 0]} maxBarSize={chartData.length <= 45 ? 28 : 48}>
               {chartData.map((entry, i) => (
