@@ -138,7 +138,10 @@ export default function SpendBarChart({ data, isLoading, title }: Props) {
                 <LabelList
                   dataKey="total"
                   position="top"
-                  formatter={(v: number) => `₹${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`}
+                  formatter={(v) => {
+                    const n = Number(v);
+                    return `₹${n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n}`;
+                  }}
                   style={{ fontSize: 10, fontWeight: 600, fill: '#6366f1' }}
                 />
               )}
