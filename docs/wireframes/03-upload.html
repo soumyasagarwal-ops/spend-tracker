@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spend Tracker — Upload Statement</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+
+    .topbar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .logo { font-size: 15px; font-weight: 700; color: #4f46e5; display: flex; align-items: center; gap: 8px; }
+    .logo-icon { width: 28px; height: 28px; background: #4f46e5; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .logo-icon svg { width: 16px; height: 16px; fill: #fff; }
+    .topbar-nav { display: flex; align-items: center; gap: 4px; }
+    .nav-link { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; text-decoration: none; }
+    .nav-link.active { background: #eef2ff; color: #4f46e5; }
+
+    /* Blurred background (dashboard showing through) */
+    .bg-blur { filter: blur(3px) brightness(0.96); pointer-events: none; padding: 28px; max-width: 1200px; margin: 0 auto; }
+    .kpi-row-bg { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 20px; }
+    .kpi-bg { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; height: 80px; }
+    .chart-row-bg { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .chart-bg { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; height: 220px; }
+
+    /* Overlay */
+    .overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(2px); padding: 20px; }
+    .modal { background: #fff; border-radius: 20px; width: 100%; max-width: 480px; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,.25); }
+    .modal-header { padding: 22px 24px 0; display: flex; align-items: center; justify-content: space-between; }
+    .modal-title { font-size: 16px; font-weight: 700; color: #0f172a; }
+    .modal-close { width: 28px; height: 28px; border-radius: 8px; border: none; background: #f1f5f9; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 16px; }
+    .modal-body { padding: 20px 24px 24px; }
+
+    /* Drop zone */
+    .dropzone { border: 2px dashed #c7d2fe; border-radius: 14px; background: #eef2ff; padding: 36px 20px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; margin-bottom: 18px; }
+    .dropzone:hover { border-color: #4f46e5; background: #e0e7ff; }
+    .dz-icon { width: 48px; height: 48px; background: #e0e7ff; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .dz-title { font-size: 14px; font-weight: 600; color: #312e81; margin-bottom: 4px; }
+    .dz-sub { font-size: 12px; color: #6366f1; }
+    .dz-formats { margin-top: 10px; display: flex; gap: 6px; justify-content: center; }
+    .fmt-pill { padding: 3px 10px; border-radius: 20px; background: #fff; border: 1px solid #c7d2fe; font-size: 11px; font-weight: 600; color: #4f46e5; }
+
+    /* Mode select */
+    .mode-row { display: flex; gap: 10px; margin-bottom: 18px; }
+    .mode-opt { flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; text-align: center; transition: border-color .15s; }
+    .mode-opt.active { border-color: #4f46e5; background: #eef2ff; }
+    .mode-opt-title { font-size: 13px; font-weight: 600; color: #0f172a; margin-bottom: 2px; }
+    .mode-opt-sub { font-size: 11px; color: #64748b; }
+
+    /* File preview (state 2) */
+    .file-preview { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .file-icon { width: 40px; height: 40px; background: #dbeafe; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .file-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+    .file-size { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .file-remove { margin-left: auto; width: 24px; height: 24px; border-radius: 6px; border: none; background: #fee2e2; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #ef4444; font-size: 14px; }
+
+    /* Progress bar */
+    .progress-wrap { margin-bottom: 18px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #64748b; margin-bottom: 6px; }
+    .progress-track { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #4f46e5, #818cf8); border-radius: 3px; width: 65%; animation: progress 2s ease infinite; }
+    @keyframes progress { 0%{width:10%} 50%{width:80%} 100%{width:95%} }
+
+    /* Result */
+    .result-box { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 16px 18px; margin-bottom: 18px; }
+    .result-title { font-size: 13px; font-weight: 700; color: #065f46; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .result-row { display: flex; justify-content: space-between; font-size: 12px; color: #047857; margin-bottom: 4px; }
+    .result-row:last-child { margin-bottom: 0; }
+
+    .btn-primary { width: 100%; padding: 12px; background: #4f46e5; color: #fff; font-size: 14px; font-weight: 600; border-radius: 12px; border: none; cursor: pointer; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-primary:disabled { background: #c7d2fe; cursor: not-allowed; }
+    .btn-secondary { width: 100%; padding: 12px; background: #f1f5f9; color: #475569; font-size: 14px; font-weight: 600; border-radius: 12px; border: none; cursor: pointer; margin-top: 8px; }
+
+    /* State tabs */
+    .state-tabs { display: flex; gap: 8px; margin-bottom: 24px; justify-content: center; flex-wrap: wrap; }
+    .state-tab { padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1.5px solid #e2e8f0; color: #64748b; background: #fff; text-decoration: none; }
+    .state-tab.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+
+    .page { max-width: 1200px; margin: 0 auto; padding-top: 10px; }
+    .back-link { font-size: 12px; color: #94a3b8; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; padding: 10px 28px; }
+    .back-link:hover { color: #4f46e5; }
+    .caption { text-align: center; font-size: 12px; color: #94a3b8; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6H9l3-6 3 6h-2v6z"/></svg></div>
+      SpendTracker
+    </div>
+    <nav class="topbar-nav">
+      <a class="nav-link" href="v1-dashboard-deep.html">Dashboard</a>
+      <a class="nav-link" href="02-transactions.html">Transactions</a>
+      <a class="nav-link" href="v1-income-deep.html">Income</a>
+      <a class="nav-link" href="05-budgets.html">Budgets</a>
+      <a class="nav-link" href="04-categories.html">Categories</a>
+    </nav>
+    <div></div>
+  </div>
+
+  <div class="page">
+    <a class="back-link" href="index.html">← All wireframes</a>
+  </div>
+
+  <div class="caption">Showing: Drop zone → File selected → Uploading → Success (click tabs to switch)</div>
+  <div class="state-tabs" style="padding: 0 20px;">
+    <a href="#" class="state-tab active" onclick="showState(0);return false;">1 · Drop zone</a>
+    <a href="#" class="state-tab" onclick="showState(1);return false;">2 · File selected</a>
+    <a href="#" class="state-tab" onclick="showState(2);return false;">3 · Uploading</a>
+    <a href="#" class="state-tab" onclick="showState(3);return false;">4 · Success</a>
+  </div>
+
+  <!-- Blurred BG -->
+  <div class="bg-blur">
+    <div class="kpi-row-bg">
+      <div class="kpi-bg"></div><div class="kpi-bg"></div><div class="kpi-bg"></div>
+      <div class="kpi-bg"></div><div class="kpi-bg"></div>
+    </div>
+    <div class="chart-row-bg">
+      <div class="chart-bg"></div><div class="chart-bg"></div>
+    </div>
+  </div>
+
+  <!-- Modal overlay -->
+  <div class="overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Import Bank Statement</div>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- State 0: drop zone -->
+        <div id="s0">
+          <div class="mode-row">
+            <div class="mode-opt active">
+              <div class="mode-opt-title">Real data</div>
+              <div class="mode-opt-sub">Save to your account</div>
+            </div>
+            <div class="mode-opt">
+              <div class="mode-opt-title">Demo data</div>
+              <div class="mode-opt-sub">Use for portfolio preview</div>
+            </div>
+          </div>
+          <div class="dropzone">
+            <div class="dz-icon">
+              <svg width="24" height="24" fill="none" stroke="#4f46e5" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dz-title">Drop your bank statement here</div>
+            <div class="dz-sub">or click to browse</div>
+            <div class="dz-formats">
+              <span class="fmt-pill">CSV</span>
+              <span class="fmt-pill">XLSX</span>
+              <span class="fmt-pill">PDF</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:16px;text-align:center">Supported banks: HDFC · ICICI · Axis · Generic CSV</div>
+          <button class="btn-primary" disabled>Upload & Import</button>
+        </div>
+
+        <!-- State 1: file selected -->
+        <div id="s1" style="display:none">
+          <div class="mode-row">
+            <div class="mode-opt active">
+              <div class="mode-opt-title">Real data</div>
+              <div class="mode-opt-sub">Save to your account</div>
+            </div>
+            <div class="mode-opt">
+              <div class="mode-opt-title">Demo data</div>
+              <div class="mode-opt-sub">Use for portfolio preview</div>
+            </div>
+          </div>
+          <div class="file-preview">
+            <div class="file-icon">
+              <svg width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-linecap="round"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div>
+              <div class="file-name">HDFC_Statement_May2026.xlsx</div>
+              <div class="file-size">84 KB · Excel Workbook</div>
+            </div>
+            <button class="file-remove">✕</button>
+          </div>
+          <div style="font-size:12px;color:#64748b;background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+            <strong style="color:#0f172a">Detected:</strong> HDFC Bank statement &nbsp;·&nbsp; Parser: HDFC CSV
+          </div>
+          <button class="btn-primary">Upload & Import</button>
+        </div>
+
+        <!-- State 2: uploading -->
+        <div id="s2" style="display:none">
+          <div class="file-preview">
+            <div class="file-icon">
+              <svg width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-linecap="round"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div>
+              <div class="file-name">HDFC_Statement_May2026.xlsx</div>
+              <div class="file-size">84 KB · Excel Workbook</div>
+            </div>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-label"><span>Parsing &amp; categorizing…</span><span>65%</span></div>
+            <div class="progress-track"><div class="progress-fill"></div></div>
+          </div>
+          <div style="font-size:12px;color:#94a3b8;text-align:center;margin-bottom:16px;">Deduplicating rows &amp; assigning categories…</div>
+          <button class="btn-primary" disabled>Importing…</button>
+        </div>
+
+        <!-- State 3: success -->
+        <div id="s3" style="display:none">
+          <div style="text-align:center;margin-bottom:20px;">
+            <div style="width:52px;height:52px;background:#ecfdf5;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:26px;">✓</div>
+            <div style="font-size:15px;font-weight:700;color:#065f46;">Import complete!</div>
+          </div>
+          <div class="result-box">
+            <div class="result-title">
+              <svg width="14" height="14" fill="none" stroke="#065f46" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              HDFC_Statement_May2026.xlsx
+            </div>
+            <div class="result-row"><span>Rows parsed</span><strong>247</strong></div>
+            <div class="result-row"><span>New transactions inserted</span><strong>231</strong></div>
+            <div class="result-row"><span>Duplicates skipped</span><strong>16</strong></div>
+            <div class="result-row"><span>Parser used</span><strong>HDFC CSV</strong></div>
+          </div>
+          <button class="btn-primary" onclick="window.location='01-dashboard.html'">View Dashboard</button>
+          <button class="btn-secondary">Import another file</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showState(n) {
+      for(let i=0;i<4;i++) {
+        document.getElementById('s'+i).style.display = i===n ? 'block' : 'none';
+      }
+      document.querySelectorAll('.state-tab').forEach((t,i) => {
+        t.className = 'state-tab' + (i===n ? ' active' : '');
+      });
+    }
+  </script>
+</body>
+</html>

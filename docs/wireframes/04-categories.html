@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spend Tracker — Category Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+
+    .topbar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .logo { font-size: 15px; font-weight: 700; color: #4f46e5; display: flex; align-items: center; gap: 8px; }
+    .logo-icon { width: 28px; height: 28px; background: #4f46e5; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .logo-icon svg { width: 16px; height: 16px; fill: #fff; }
+    .topbar-nav { display: flex; align-items: center; gap: 4px; }
+    .nav-link { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; text-decoration: none; }
+    .nav-link.active { background: #eef2ff; color: #4f46e5; }
+
+    .page { max-width: 1200px; margin: 0 auto; padding: 28px 28px 60px; }
+    .back-link { font-size: 12px; color: #94a3b8; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 20px; }
+    .back-link:hover { color: #4f46e5; }
+
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .page-title { font-size: 20px; font-weight: 700; color: #0f172a; }
+    .page-sub { font-size: 12px; color: #94a3b8; margin-bottom: 24px; }
+    .btn-primary { padding: 9px 18px; background: #4f46e5; color: #fff; font-size: 13px; font-weight: 600; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 6px; border: none; }
+
+    /* Two-panel layout */
+    .two-col { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+
+    /* Left: category list */
+    .cat-list-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
+    .cat-list-head { padding: 16px 18px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+    .cat-list-title { font-size: 13px; font-weight: 600; color: #334155; }
+    .cat-list-add { width: 28px; height: 28px; border-radius: 8px; background: #eef2ff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #4f46e5; font-size: 18px; font-weight: 300; }
+    .cat-row { display: flex; align-items: center; gap: 12px; padding: 13px 18px; border-bottom: 1px solid #f8fafc; cursor: pointer; transition: background .1s; }
+    .cat-row:last-child { border-bottom: none; }
+    .cat-row:hover { background: #f8fafc; }
+    .cat-row.active { background: #eef2ff; }
+    .cat-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .cat-name { font-size: 13px; font-weight: 500; color: #0f172a; flex: 1; }
+    .cat-count { font-size: 11px; color: #94a3b8; }
+    .cat-spend { font-size: 12px; font-weight: 600; color: #334155; }
+
+    /* Right: editor */
+    .editor-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; }
+    .editor-title { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .field-group { margin-bottom: 18px; }
+    .field-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+    .field-input { width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 13px; color: #334155; outline: none; }
+    .field-input:focus { border-color: #a5b4fc; }
+
+    /* Color swatches */
+    .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+    .swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: transform .1s; }
+    .swatch.active { border-color: #0f172a; transform: scale(1.15); }
+    .swatch:hover:not(.active) { transform: scale(1.1); }
+
+    /* Keywords */
+    .keyword-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .kw-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; background: #eef2ff; border-radius: 20px; font-size: 12px; color: #3730a3; font-weight: 500; }
+    .kw-chip button { background: none; border: none; cursor: pointer; color: #a5b4fc; font-size: 14px; line-height: 1; padding: 0; }
+    .kw-chip button:hover { color: #4f46e5; }
+    .kw-add { display: flex; gap: 8px; }
+    .kw-add input { flex: 1; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 12px; color: #334155; outline: none; }
+    .kw-add input:focus { border-color: #a5b4fc; }
+    .kw-add-btn { padding: 8px 14px; background: #eef2ff; color: #4f46e5; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+    /* Stats bar in editor */
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .stat-box { background: #f8fafc; border-radius: 10px; padding: 12px 14px; }
+    .stat-lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+    .stat-val { font-size: 16px; font-weight: 700; color: #0f172a; }
+
+    .action-row { display: flex; gap: 8px; margin-top: 8px; }
+    .btn-save { flex: 1; padding: 11px; background: #4f46e5; color: #fff; font-size: 13px; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; }
+    .btn-save:hover { background: #4338ca; }
+    .btn-danger { padding: 11px 16px; background: #fff; color: #ef4444; font-size: 13px; font-weight: 600; border-radius: 10px; border: 1.5px solid #fecaca; cursor: pointer; }
+    .btn-danger:hover { background: #fee2e2; }
+
+    .roadmap-note { margin-top: 16px; padding: 10px 14px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; font-size: 11px; color: #92400e; }
+
+    @media (max-width: 800px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6H9l3-6 3 6h-2v6z"/></svg></div>
+      SpendTracker
+    </div>
+    <nav class="topbar-nav">
+      <a class="nav-link" href="v1-dashboard-deep.html">Dashboard</a>
+      <a class="nav-link" href="02-transactions.html">Transactions</a>
+      <a class="nav-link" href="v1-income-deep.html">Income</a>
+      <a class="nav-link" href="05-budgets.html">Budgets</a>
+      <a class="nav-link active" href="04-categories.html">Categories</a>
+    </nav>
+    <div></div>
+  </div>
+
+  <div class="page">
+    <a class="back-link" href="index.html">← All wireframes</a>
+    <div class="page-header">
+      <div class="page-title">Category Manager</div>
+      <button class="btn-primary">+ New Category</button>
+    </div>
+    <div class="page-sub">Edit keyword rules, colors, and merge categories. Changes apply to future ingestions.</div>
+
+    <div class="roadmap-note">📌 Roadmap v1.3 — not yet built. This wireframe shows the planned UI.</div>
+    <br/>
+
+    <div class="two-col">
+      <!-- Left list -->
+      <div class="cat-list-card">
+        <div class="cat-list-head">
+          <span class="cat-list-title">8 categories</span>
+          <button class="cat-list-add">+</button>
+        </div>
+        <div class="cat-row active">
+          <div class="cat-dot" style="background:#4f46e5"></div>
+          <div class="cat-name">Food</div>
+          <div class="cat-count">94 txns</div>
+          <div class="cat-spend">₹9,425</div>
+        </div>
+        <div class="cat-row">
+          <div class="cat-dot" style="background:#06b6d4"></div>
+          <div class="cat-name">Transport</div>
+          <div class="cat-count">67 txns</div>
+          <div class="cat-spend">₹7,711</div>
+        </div>
+        <div class="cat-row">
+          <div class="cat-dot" style="background:#10b981"></div>
+          <div class="cat-name">Groceries</div>
+          <div class="cat-count">42 txns</div>
+          <div class="cat-spend">₹6,426</div>
+        </div>
+        <div class="cat-row">
+          <div class="cat-dot" style="background:#f59e0b"></div>
+          <div class="cat-name">Shopping</div>
+          <div class="cat-count">31 txns</div>
+          <div class="cat-spend">₹5,998</div>
+        </div>
+        <div class="cat-row">
+          <div class="cat-dot" style="background:#8b5cf6"></div>
+          <div class="cat-name">Utilities</div>
+          <div class="cat-count">12 txns</div>
+          <div class="cat-spend">₹5,141</div>
+        </div>
+        <div class="cat-row">
+          <div class="cat-dot" style="background:#ef4444"></div>
+          <div class="cat-name">Health</div>
+          <div class="cat-count">18 txns</div>
+          <div class="cat-spend">₹3,820</div>
+        </div>
+        <div class="cat-row">
+          <div class="cat-dot" style="background:#3b82f6"></div>
+          <div class="cat-name">Entertainment</div>
+          <div class="cat-count">9 txns</div>
+          <div class="cat-spend">₹2,490</div>
+        </div>
+        <div class="cat-row">
+          <div class="cat-dot" style="background:#94a3b8"></div>
+          <div class="cat-name">Uncategorized</div>
+          <div class="cat-count">23 txns</div>
+          <div class="cat-spend">₹4,830</div>
+        </div>
+      </div>
+
+      <!-- Right editor -->
+      <div class="editor-card">
+        <div class="editor-title">
+          <div style="width:14px;height:14px;border-radius:50%;background:#4f46e5;flex-shrink:0"></div>
+          Editing: Food
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box"><div class="stat-lbl">Transactions</div><div class="stat-val">94</div></div>
+          <div class="stat-box"><div class="stat-lbl">Total spend</div><div class="stat-val">₹9.4k</div></div>
+          <div class="stat-box"><div class="stat-lbl">% of total</div><div class="stat-val">22%</div></div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Category name</div>
+          <input class="field-input" type="text" value="Food" />
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Color</div>
+          <div class="color-swatches">
+            <div class="swatch active" style="background:#4f46e5"></div>
+            <div class="swatch" style="background:#06b6d4"></div>
+            <div class="swatch" style="background:#10b981"></div>
+            <div class="swatch" style="background:#f59e0b"></div>
+            <div class="swatch" style="background:#ef4444"></div>
+            <div class="swatch" style="background:#8b5cf6"></div>
+            <div class="swatch" style="background:#ec4899"></div>
+            <div class="swatch" style="background:#f97316"></div>
+            <div class="swatch" style="background:#14b8a6"></div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Keywords <span style="font-weight:400;text-transform:none;color:#94a3b8">(match on transaction description)</span></div>
+          <div class="keyword-wrap">
+            <div class="kw-chip">swiggy <button>✕</button></div>
+            <div class="kw-chip">zomato <button>✕</button></div>
+            <div class="kw-chip">restaurant <button>✕</button></div>
+            <div class="kw-chip">cafe <button>✕</button></div>
+            <div class="kw-chip">starbucks <button>✕</button></div>
+            <div class="kw-chip">dominos <button>✕</button></div>
+            <div class="kw-chip">mcdonald <button>✕</button></div>
+            <div class="kw-chip">kfc <button>✕</button></div>
+          </div>
+          <div class="kw-add">
+            <input type="text" placeholder="Add keyword…" value="subway" />
+            <button class="kw-add-btn">+ Add</button>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn-save">Save changes</button>
+          <button class="btn-danger">Delete category</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

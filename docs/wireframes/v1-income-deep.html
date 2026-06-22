@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spend Tracker — Income (Deep Insights)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #0f172a; min-height: 100vh; }
+
+    .topbar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 0 36px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .logo { font-size: 15px; font-weight: 800; color: #4f46e5; display: flex; align-items: center; gap: 9px; }
+    .logo-mark { width: 30px; height: 30px; background: #4f46e5; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .logo-mark svg { width: 16px; height: 16px; fill: #fff; }
+    .nav { display: flex; gap: 2px; }
+    .nav a { padding: 7px 16px; border-radius: 9px; font-size: 13.5px; font-weight: 500; color: #64748b; text-decoration: none; }
+    .nav a:hover { background: #f1f5f9; color: #0f172a; }
+    .nav a.active { background: #eef2ff; color: #4f46e5; font-weight: 600; }
+    .demo-chip { display: flex; align-items: center; gap: 8px; padding: 6px 14px; background: #f1f5f9; border-radius: 20px; font-size: 12.5px; color: #64748b; }
+    .toggle { width: 36px; height: 20px; background: #e2e8f0; border-radius: 10px; position: relative; }
+    .toggle-dot { width: 16px; height: 16px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+
+    .page { max-width: 1360px; margin: 0 auto; padding: 36px 36px 80px; }
+    .page-hdr { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -.4px; }
+    .page-sub { font-size: 13px; color: #94a3b8; margin-top: 3px; }
+
+    .date-row { display: flex; gap: 7px; margin-bottom: 30px; }
+    .dp { padding: 7px 16px; border-radius: 20px; font-size: 12.5px; font-weight: 500; border: 1.5px solid #e2e8f0; color: #64748b; background: #fff; cursor: pointer; }
+    .dp.active { background: #10b981; color: #fff; border-color: #10b981; font-weight: 600; }
+    .dp:hover:not(.active) { border-color: #6ee7b7; color: #10b981; }
+
+    /* KPI row */
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+    .kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 22px 20px; position: relative; overflow: hidden; }
+    .kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:18px 18px 0 0; }
+    .kpi.a::before { background: linear-gradient(90deg,#10b981,#059669); }
+    .kpi.b::before { background: linear-gradient(90deg,#4f46e5,#818cf8); }
+    .kpi.c::before { background: linear-gradient(90deg,#10b981,#34d399); }
+    .kpi.d::before { background: linear-gradient(90deg,#f59e0b,#fbbf24); }
+    .kpi-label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 7px; }
+    .kpi-value { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -.5px; line-height: 1; margin-bottom: 6px; }
+    .kpi-sub { font-size: 12px; font-weight: 500; }
+    .c-green { color: #10b981; } .c-red { color: #fb7185; } .c-blue { color: #4f46e5; } .c-amber { color: #f59e0b; } .c-muted { color: #94a3b8; }
+
+    .section-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 14px; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 24px 26px; }
+    .card-title { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+    .card-sub { font-size: 12px; color: #94a3b8; margin-bottom: 22px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .full { margin-bottom: 16px; }
+
+    /* Income monthly bars */
+    .inc-bar-area { display: flex; align-items: flex-end; gap: 10px; height: 170px; margin-bottom: 12px; }
+    .ic { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; }
+    .ib { width: 100%; border-radius: 5px 5px 0 0; }
+    .il { font-size: 10.5px; color: #94a3b8; }
+    .iv { font-size: 10.5px; color: #64748b; }
+
+    /* Stability score */
+    .stability-ring { position: relative; width: 130px; height: 130px; margin: 0 auto 20px; }
+    .stability-ring svg { width: 130px; height: 130px; }
+    .stability-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+    .stability-val { font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -.6px; }
+    .stability-lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .07em; }
+
+    /* Source breakdown */
+    .src-row { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #f1f5f9; }
+    .src-row:last-child { border-bottom: none; }
+    .src-icon { width: 40px; height: 40px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+    .src-mid { flex: 1; }
+    .src-name { font-size: 13px; font-weight: 600; color: #0f172a; margin-bottom: 6px; }
+    .src-track { height: 5px; background: #f1f5f9; border-radius: 3px; overflow: hidden; }
+    .src-fill { height: 100%; border-radius: 3px; }
+    .src-right { text-align: right; min-width: 80px; }
+    .src-amt { font-size: 15px; font-weight: 700; color: #0f172a; }
+    .src-pct { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .src-tag { display: inline-block; margin-top: 3px; padding: 1px 7px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+    .tag-stable { background: #f0fdf4; color: #059669; }
+    .tag-var { background: #fef3c7; color: #b45309; }
+    .tag-passive { background: #eef2ff; color: #4f46e5; }
+
+    /* Expected vs actual */
+    .exp-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .exp-row:last-of-type { margin-bottom: 0; }
+    .exp-month { font-size: 12.5px; color: #64748b; width: 36px; flex-shrink: 0; font-weight: 500; }
+    .exp-bars { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+    .exp-track { height: 7px; background: #f1f5f9; border-radius: 3px; overflow: hidden; }
+    .exp-fill { height: 100%; border-radius: 3px; }
+    .exp-val { font-size: 13px; font-weight: 700; width: 80px; text-align: right; flex-shrink: 0; }
+    .exp-diff { font-size: 11px; font-weight: 600; width: 68px; text-align: right; flex-shrink: 0; }
+    .exp-legend { display: flex; gap: 18px; font-size: 11.5px; color: #64748b; margin-top: 16px; }
+    .exp-legend span { display: flex; align-items: center; gap: 5px; }
+    .lb { display: inline-block; width: 16px; height: 5px; border-radius: 2px; }
+
+    /* Savings trajectory */
+    .traj-bar-area { display: flex; align-items: flex-end; gap: 10px; height: 140px; margin-bottom: 10px; }
+    .tj { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; }
+    .tj-bar { width: 100%; border-radius: 4px 4px 0 0; }
+    .tj-lbl { font-size: 10px; color: #94a3b8; }
+    .tj-val { font-size: 10px; color: #64748b; }
+
+    /* Income insights */
+    .inc-ins-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 10px; }
+    .inc-ins-row:last-child { margin-bottom: 0; }
+    .inc-ins-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+    .inc-ins-text { font-size: 13px; color: #475569; line-height: 1.6; }
+    .inc-ins-text b { color: #0f172a; font-weight: 600; }
+
+    /* Diversification meter */
+    .div-meter { display: flex; height: 20px; border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
+    .div-seg { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; transition: width .3s; }
+    .div-legend { display: flex; flex-wrap: wrap; gap: 10px; }
+    .div-leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; }
+    .div-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Table */
+    .table-wrap { border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { padding: 12px 20px; text-align: left; font-size: 10.5px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .08em; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+    thead th.r { text-align: right; }
+    tbody tr { border-bottom: 1px solid #f1f5f9; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafbff; }
+    td { padding: 14px 20px; font-size: 13.5px; color: #64748b; }
+    td.r { text-align: right; }
+    .td-main { font-weight: 600; color: #0f172a; }
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .bs { background: #d1fae5; color: #065f46; }
+    .bf { background: #dbeafe; color: #1e40af; }
+    .bi { background: #fef3c7; color: #92400e; }
+    .br { background: #f3e8ff; color: #7e22ce; }
+    .amount { font-weight: 700; color: #059669; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6H9l3-6 3 6h-2v6z"/></svg></div>
+    SpendTracker
+  </div>
+  <nav class="nav">
+    <a href="v1-dashboard-deep.html">Dashboard</a>
+    <a href="02-transactions.html">Transactions</a>
+    <a href="v1-income-deep.html" class="active">Income</a>
+    <a href="05-budgets.html">Budgets</a>
+    <a href="04-categories.html">Categories</a>
+  </nav>
+  <div class="demo-chip">Demo mode <div class="toggle"><div class="toggle-dot"></div></div></div>
+</div>
+
+<div class="page">
+
+  <div class="page-hdr">
+    <div>
+      <div class="page-title">Income</div>
+      <div class="page-sub">Salary, freelance, interest and all credits · deeper analysis</div>
+    </div>
+  </div>
+
+  <div class="date-row">
+    <div class="dp active">This Month</div>
+    <div class="dp">Last 3 Months</div>
+    <div class="dp">This Year</div>
+    <div class="dp">All Time</div>
+  </div>
+
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <div class="kpi a">
+      <div class="kpi-label">Total Income</div>
+      <div class="kpi-value">₹1,00,000</div>
+      <div class="kpi-sub c-green">↑ 18% vs last month</div>
+    </div>
+    <div class="kpi b">
+      <div class="kpi-label">vs Expected</div>
+      <div class="kpi-value">+₹15,000</div>
+      <div class="kpi-sub c-blue">Above your ₹85k baseline</div>
+    </div>
+    <div class="kpi c">
+      <div class="kpi-label">Savings Rate</div>
+      <div class="kpi-value">57%</div>
+      <div class="kpi-sub c-green">Best in 4 months</div>
+    </div>
+    <div class="kpi d">
+      <div class="kpi-label">Income Stability</div>
+      <div class="kpi-value">82/100</div>
+      <div class="kpi-sub c-amber">Mostly predictable</div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 1: Income trend + stability ── -->
+  <div class="section-label">Income trend & stability</div>
+  <div class="two-col">
+
+    <!-- Monthly income bars -->
+    <div class="card">
+      <div class="card-title">Monthly Income</div>
+      <div class="card-sub">Last 8 months · green bar = actual · dotted line = expected ₹85,000</div>
+      <div class="inc-bar-area">
+        <div class="ic">
+          <div class="iv">₹76k</div>
+          <div class="ib" style="height:76%;background:#6ee7b7;opacity:.5"></div>
+          <div class="il">Oct</div>
+        </div>
+        <div class="ic">
+          <div class="iv">₹85k</div>
+          <div class="ib" style="height:85%;background:#6ee7b7;opacity:.6"></div>
+          <div class="il">Nov</div>
+        </div>
+        <div class="ic">
+          <div class="iv">₹85k</div>
+          <div class="ib" style="height:85%;background:#6ee7b7;opacity:.65"></div>
+          <div class="il">Dec</div>
+        </div>
+        <div class="ic">
+          <div class="iv">₹85k</div>
+          <div class="ib" style="height:85%;background:#6ee7b7;opacity:.7"></div>
+          <div class="il">Jan</div>
+        </div>
+        <div class="ic">
+          <div class="iv">₹83k</div>
+          <div class="ib" style="height:83%;background:#fbbf24;opacity:.8"></div>
+          <div class="il" style="color:#f59e0b">Feb</div>
+        </div>
+        <div class="ic">
+          <div class="iv">₹85k</div>
+          <div class="ib" style="height:85%;background:#6ee7b7;opacity:.75"></div>
+          <div class="il">Mar</div>
+        </div>
+        <div class="ic">
+          <div class="iv">₹85k</div>
+          <div class="ib" style="height:85%;background:#6ee7b7;opacity:.8"></div>
+          <div class="il">Apr</div>
+        </div>
+        <div class="ic">
+          <div class="iv" style="color:#059669;font-weight:700">₹1L</div>
+          <div class="ib" style="height:100%;background:linear-gradient(180deg,#34d399,#059669)"></div>
+          <div class="il" style="color:#059669;font-weight:700">May ✦</div>
+        </div>
+      </div>
+      <!-- expected line annotation -->
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px;font-size:12px;color:#166534;">
+        📏 <strong>Expected baseline: ₹85,000/month</strong> (your salary). Anything above is freelance or other income. Feb was ₹1,800 short — salary disbursed 2 days late.
+      </div>
+    </div>
+
+    <!-- Stability score + breakdown -->
+    <div class="card">
+      <div class="card-title">Income Stability Score</div>
+      <div class="card-sub">How predictable your income is · 100 = perfectly stable</div>
+
+      <div class="stability-ring">
+        <svg viewBox="0 0 130 130">
+          <circle cx="65" cy="65" r="52" fill="none" stroke="#f1f5f9" stroke-width="14"/>
+          <!-- 82% = 267px of 326px circumference -->
+          <circle cx="65" cy="65" r="52" fill="none" stroke="url(#stab-grad)" stroke-width="14"
+            stroke-dasharray="267 326" stroke-dashoffset="81.5" transform="rotate(-90 65 65)" stroke-linecap="round"/>
+          <defs>
+            <linearGradient id="stab-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#10b981"/>
+              <stop offset="100%" stop-color="#34d399"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="stability-center">
+          <div class="stability-val">82</div>
+          <div class="stability-lbl">/ 100</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f0fdf4;border-radius:10px">
+          <span style="font-size:12.5px;color:#166534;font-weight:500">✅ Salary — always on time</span>
+          <span style="font-size:13px;font-weight:700;color:#059669">+40 pts</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f0fdf4;border-radius:10px">
+          <span style="font-size:12.5px;color:#166534;font-weight:500">✅ 7 of 8 months hit target</span>
+          <span style="font-size:13px;font-weight:700;color:#059669">+30 pts</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fef3c7;border-radius:10px">
+          <span style="font-size:12.5px;color:#92400e;font-weight:500">⚠ Freelance varies each month</span>
+          <span style="font-size:13px;font-weight:700;color:#f59e0b">+12 pts</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fef2f2;border-radius:10px">
+          <span style="font-size:12.5px;color:#991b1b;font-weight:500">❌ 1 month missed target (Feb)</span>
+          <span style="font-size:13px;font-weight:700;color:#fb7185">−0 pts</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── SECTION 2: Income diversification ── -->
+  <div class="section-label">Income diversification</div>
+  <div class="full">
+    <div class="card">
+      <div class="card-title">Income Sources Breakdown</div>
+      <div class="card-sub">What percentage of your income comes from each source · May 2026</div>
+
+      <!-- Stacked bar -->
+      <div class="div-meter" style="margin-bottom:18px">
+        <div class="div-seg" style="width:85%;background:#10b981">85%</div>
+        <div class="div-seg" style="width:15%;background:#4f46e5">15%</div>
+        <div class="div-seg" style="width:1%;background:#f59e0b"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
+        <div>
+          <div class="src-row" style="padding-top:0">
+            <div class="src-icon" style="background:#f0fdf4">💼</div>
+            <div class="src-mid">
+              <div class="src-name">Salary</div>
+              <div class="src-track"><div class="src-fill" style="width:85%;background:#10b981"></div></div>
+              <span class="src-tag tag-stable">Stable</span>
+            </div>
+            <div class="src-right">
+              <div class="src-amt">₹85,000</div>
+              <div class="src-pct">85%</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="src-row" style="padding-top:0">
+            <div class="src-icon" style="background:#eef2ff">💻</div>
+            <div class="src-mid">
+              <div class="src-name">Freelance</div>
+              <div class="src-track"><div class="src-fill" style="width:15%;background:#4f46e5"></div></div>
+              <span class="src-tag tag-var">Variable</span>
+            </div>
+            <div class="src-right">
+              <div class="src-amt">₹15,000</div>
+              <div class="src-pct">15%</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="src-row" style="padding-top:0">
+            <div class="src-icon" style="background:#fffbeb">📈</div>
+            <div class="src-mid">
+              <div class="src-name">FD Interest</div>
+              <div class="src-track"><div class="src-fill" style="width:1%;background:#f59e0b"></div></div>
+              <span class="src-tag tag-passive">Passive</span>
+            </div>
+            <div class="src-right">
+              <div class="src-amt">₹420</div>
+              <div class="src-pct">&lt;1%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Diversification insights -->
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px 16px;font-size:13px;color:#92400e">
+        💡 <strong>85% of your income comes from a single source (salary).</strong> While your salary is reliable, consider building freelance income to &gt;25% or adding passive income streams (SIPs, rental, interest) to reach a healthier diversification — ideally no single source above 70%.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 3: Expected vs actual · detailed ── -->
+  <div class="section-label">Expected vs actual · 6-month view</div>
+  <div class="two-col">
+
+    <div class="card">
+      <div class="card-title">Expected vs Actual Income</div>
+      <div class="card-sub">Baseline: ₹85,000/month · green = above, amber = below</div>
+      <div>
+        <div class="exp-row">
+          <div class="exp-month" style="color:#059669;font-weight:700">May</div>
+          <div class="exp-bars">
+            <div class="exp-track"><div class="exp-fill" style="width:100%;background:#10b981"></div></div>
+            <div class="exp-track"><div class="exp-fill" style="width:85%;background:#e2e8f0"></div></div>
+          </div>
+          <div class="exp-val">₹1,00,000</div>
+          <div class="exp-diff c-green">+₹15k</div>
+        </div>
+        <div class="exp-row">
+          <div class="exp-month">Apr</div>
+          <div class="exp-bars">
+            <div class="exp-track"><div class="exp-fill" style="width:85%;background:#6ee7b7"></div></div>
+            <div class="exp-track"><div class="exp-fill" style="width:85%;background:#e2e8f0"></div></div>
+          </div>
+          <div class="exp-val">₹85,000</div>
+          <div class="exp-diff c-muted">On target</div>
+        </div>
+        <div class="exp-row">
+          <div class="exp-month">Mar</div>
+          <div class="exp-bars">
+            <div class="exp-track"><div class="exp-fill" style="width:85%;background:#6ee7b7"></div></div>
+            <div class="exp-track"><div class="exp-fill" style="width:85%;background:#e2e8f0"></div></div>
+          </div>
+          <div class="exp-val">₹85,000</div>
+          <div class="exp-diff c-muted">On target</div>
+        </div>
+        <div class="exp-row">
+          <div class="exp-month" style="color:#f59e0b;font-weight:600">Feb</div>
+          <div class="exp-bars">
+            <div class="exp-track"><div class="exp-fill" style="width:83%;background:#fcd34d"></div></div>
+            <div class="exp-track"><div class="exp-fill" style="width:85%;background:#e2e8f0"></div></div>
+          </div>
+          <div class="exp-val">₹83,200</div>
+          <div class="exp-diff c-red">−₹1,800</div>
+        </div>
+        <div class="exp-row">
+          <div class="exp-month">Jan</div>
+          <div class="exp-bars">
+            <div class="exp-track"><div class="exp-fill" style="width:85%;background:#6ee7b7"></div></div>
+            <div class="exp-track"><div class="exp-fill" style="width:85%;background:#e2e8f0"></div></div>
+          </div>
+          <div class="exp-val">₹85,000</div>
+          <div class="exp-diff c-muted">On target</div>
+        </div>
+        <div class="exp-row">
+          <div class="exp-month">Dec</div>
+          <div class="exp-bars">
+            <div class="exp-track"><div class="exp-fill" style="width:85%;background:#6ee7b7"></div></div>
+            <div class="exp-track"><div class="exp-fill" style="width:85%;background:#e2e8f0"></div></div>
+          </div>
+          <div class="exp-val">₹85,000</div>
+          <div class="exp-diff c-muted">On target</div>
+        </div>
+      </div>
+      <div class="exp-legend">
+        <span><span class="lb" style="background:#10b981"></span>Actual income</span>
+        <span><span class="lb" style="background:#e2e8f0"></span>Expected (₹85,000)</span>
+      </div>
+    </div>
+
+    <!-- Savings trajectory -->
+    <div class="card">
+      <div class="card-title">Monthly Savings</div>
+      <div class="card-sub">How much you actually saved each month · income minus spend</div>
+      <div class="traj-bar-area">
+        <div class="tj">
+          <div class="tj-val">₹46.2k</div>
+          <div class="tj-bar" style="height:100%;background:#bbf7d0"></div>
+          <div class="tj-lbl">Oct</div>
+        </div>
+        <div class="tj">
+          <div class="tj-val">₹44.8k</div>
+          <div class="tj-bar" style="height:97%;background:#bbf7d0"></div>
+          <div class="tj-lbl">Nov</div>
+        </div>
+        <div class="tj">
+          <div class="tj-val">₹48.2k</div>
+          <div class="tj-bar" style="height:104%;background:#6ee7b7"></div>
+          <div class="tj-lbl">Dec</div>
+        </div>
+        <div class="tj">
+          <div class="tj-val">₹51.9k</div>
+          <div class="tj-bar" style="height:112%;background:#34d399"></div>
+          <div class="tj-lbl">Jan</div>
+        </div>
+        <div class="tj">
+          <div class="tj-val">₹43.8k</div>
+          <div class="tj-bar" style="height:94%;background:#fcd34d"></div>
+          <div class="tj-lbl" style="color:#f59e0b">Feb</div>
+        </div>
+        <div class="tj">
+          <div class="tj-val">₹49.5k</div>
+          <div class="tj-bar" style="height:107%;background:#34d399"></div>
+          <div class="tj-lbl">Mar</div>
+        </div>
+        <div class="tj">
+          <div class="tj-val">₹46.8k</div>
+          <div class="tj-bar" style="height:101%;background:#6ee7b7"></div>
+          <div class="tj-lbl">Apr</div>
+        </div>
+        <div class="tj">
+          <div class="tj-val" style="color:#059669;font-weight:700">₹57.2k</div>
+          <div class="tj-bar" style="height:124%;background:linear-gradient(180deg,#10b981,#059669)"></div>
+          <div class="tj-lbl" style="color:#059669;font-weight:600">May ↑</div>
+        </div>
+      </div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#166534;margin-top:4px">
+        🎯 <strong>May is your best savings month in 8 months</strong> — ₹57,160 saved (57% rate). The freelance income bump of ₹15k made the difference.
+      </div>
+
+      <!-- Savings rate summary -->
+      <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div style="text-align:center;padding:12px;background:#f8fafc;border-radius:10px">
+          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Avg rate</div>
+          <div style="font-size:19px;font-weight:800;color:#0f172a">52%</div>
+          <div style="font-size:11px;color:#94a3b8">last 8 months</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:#f0fdf4;border-radius:10px">
+          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Best month</div>
+          <div style="font-size:19px;font-weight:800;color:#059669">57%</div>
+          <div style="font-size:11px;color:#94a3b8">May 2026</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:#fef2f2;border-radius:10px">
+          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Worst month</div>
+          <div style="font-size:19px;font-weight:800;color:#fb7185">49%</div>
+          <div style="font-size:11px;color:#94a3b8">Feb 2026</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── SECTION 4: Income insights ── -->
+  <div class="section-label">Income insights</div>
+  <div class="full">
+    <div class="card">
+      <div class="card-title">What your income data is telling you</div>
+      <div class="card-sub">Patterns, risks and opportunities identified from 8 months of data</div>
+      <div>
+        <div class="inc-ins-row">
+          <div class="inc-ins-icon" style="background:#f0fdf4">📈</div>
+          <div class="inc-ins-text"><b>Your freelance income is growing.</b> ₹0 in Oct → ₹8,000 in Feb → ₹15,000 in May. If this trend continues, freelance could reach 25% of income by September — significantly improving your financial resilience.</div>
+        </div>
+        <div class="inc-ins-row">
+          <div class="inc-ins-icon" style="background:#fef3c7">⚠️</div>
+          <div class="inc-ins-text"><b>High salary dependency is a risk.</b> 85% of income from one employer means any disruption (job change, layoff, leave) cuts income significantly. A 3-month emergency fund of ₹2.55L would cover this gap.</div>
+        </div>
+        <div class="inc-ins-row">
+          <div class="inc-ins-icon" style="background:#eef2ff">🏦</div>
+          <div class="inc-ins-text"><b>Your FD interest is negligible (₹420/month).</b> At your savings rate, you're building capital that could generate much more. ₹5L in a liquid mutual fund at 7% would generate ~₹2,916/month in passive income — 7× your current passive income.</div>
+        </div>
+        <div class="inc-ins-row">
+          <div class="inc-ins-icon" style="background:#f0fdf4">💰</div>
+          <div class="inc-ins-text"><b>You're consistently saving above 50%.</b> At this rate you accumulate ~₹6L/year in savings. In 3 years that's ₹18L+ in corpus (excluding investment returns) — enough for a down payment or a significant life goal.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 5: All income transactions ── -->
+  <div class="section-label">Income transactions</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Source</th>
+          <th>Type</th>
+          <th class="r">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>29 May 2026</td>
+          <td class="td-main">SALARY — INFOSYS LTD</td>
+          <td style="color:#64748b">Employer</td>
+          <td><span class="badge bs">💼 Salary</span></td>
+          <td class="r amount">+ ₹85,000</td>
+        </tr>
+        <tr>
+          <td>20 May 2026</td>
+          <td class="td-main">NEFT — ACME CORP CLIENT FEE</td>
+          <td style="color:#64748b">Freelance</td>
+          <td><span class="badge bf">💻 Freelance</span></td>
+          <td class="r amount">+ ₹15,000</td>
+        </tr>
+        <tr>
+          <td>5 May 2026</td>
+          <td class="td-main">FD INTEREST CREDIT — HDFC BANK</td>
+          <td style="color:#64748b">Passive</td>
+          <td><span class="badge bi">📈 Interest</span></td>
+          <td class="r amount">+ ₹420</td>
+        </tr>
+        <tr>
+          <td>2 May 2026</td>
+          <td class="td-main">NEFT INWARD — TRAVEL REIMBURSEMENT</td>
+          <td style="color:#64748b">Reimbursement</td>
+          <td><span class="badge br">🧾 Reimb.</span></td>
+          <td class="r amount">+ ₹3,200</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

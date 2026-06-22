@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spend Tracker — Wireframes</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #0f172a; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; }
+    .logo { font-size: 18px; font-weight: 800; color: #4f46e5; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .logo-mark { width: 34px; height: 34px; background: #4f46e5; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .logo-mark svg { width: 18px; height: 18px; fill: #fff; }
+    h1 { font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 40px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: 860px; width: 100%; }
+    a { text-decoration: none; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 28px 24px; transition: box-shadow .2s, transform .2s, border-color .2s; cursor: pointer; }
+    .card:hover { box-shadow: 0 8px 30px rgba(79,70,229,.12); transform: translateY(-3px); border-color: #a5b4fc; }
+    .card-num { font-size: 10px; font-weight: 700; color: #a5b4fc; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
+    .card-title { font-size: 17px; font-weight: 800; color: #0f172a; margin-bottom: 6px; letter-spacing: -.2px; }
+    .card-desc { font-size: 13px; color: #64748b; line-height: 1.55; }
+    .card-tag { display: inline-block; margin-top: 14px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .tag-live { background: #eef2ff; color: #4f46e5; }
+    .tag-roadmap { background: #fffbeb; color: #b45309; }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6H9l3-6 3 6h-2v6z"/></svg></div>
+    SpendTracker
+  </div>
+  <h1>Wireframes</h1>
+
+  <div class="grid">
+    <a href="v1-dashboard-deep.html">
+      <div class="card">
+        <div class="card-num">Screen 01</div>
+        <div class="card-title">Dashboard</div>
+        <div class="card-desc">KPI cards, daily spend chart, weekly velocity, day-of-week heatmap, top merchants, recurring transactions, 6-month trend.</div>
+        <span class="card-tag tag-live">Current</span>
+      </div>
+    </a>
+    <a href="02-transactions.html">
+      <div class="card">
+        <div class="card-num">Screen 02</div>
+        <div class="card-title">Transactions</div>
+        <div class="card-desc">Paginated table with search, category and type filters, colour-coded badges, debit/credit amounts.</div>
+        <span class="card-tag tag-live">Current</span>
+      </div>
+    </a>
+    <a href="03-upload.html">
+      <div class="card">
+        <div class="card-num">Screen 03</div>
+        <div class="card-title">Upload Statement</div>
+        <div class="card-desc">Drag-and-drop modal with 4 states — drop zone, file selected, uploading, and success with row summary.</div>
+        <span class="card-tag tag-live">Current</span>
+      </div>
+    </a>
+    <a href="v1-income-deep.html">
+      <div class="card">
+        <div class="card-num">Screen 04</div>
+        <div class="card-title">Income</div>
+        <div class="card-desc">Income stability score, source diversification, expected vs actual, savings trajectory, freelance growth trend.</div>
+        <span class="card-tag tag-roadmap">Roadmap v1.2</span>
+      </div>
+    </a>
+    <a href="05-budgets.html">
+      <div class="card">
+        <div class="card-num">Screen 05</div>
+        <div class="card-title">Budgets</div>
+        <div class="card-desc">Monthly limits per category with progress bars, over-budget alerts, projected month-end spend chart.</div>
+        <span class="card-tag tag-roadmap">Roadmap v1.4</span>
+      </div>
+    </a>
+    <a href="04-categories.html">
+      <div class="card">
+        <div class="card-num">Screen 06</div>
+        <div class="card-title">Categories</div>
+        <div class="card-desc">Edit category names, colours and keyword rules. Two-panel layout — list on left, editor on right.</div>
+        <span class="card-tag tag-roadmap">Roadmap v1.3</span>
+      </div>
+    </a>
+  </div>
+</body>
+</html>

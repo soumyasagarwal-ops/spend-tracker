@@ -1,0 +1,393 @@
+# Spend Tracker — Documentation
+
+_Last updated: June 2026 · single canonical reference_
+
+The complete guide to Spend Tracker — the mental model, every screen, the full
+API, backend internals, and how each number is computed.
+
+## Table of contents
+1. [Overview](#1-overview)
+2. [The Wallet model](#2-the-wallet-model-core-concept)
+3. [Architecture](#3-architecture)
+4. [Smart classification (flags)](#4-smart-classification-the-flags)
+5. [The screens](#5-the-screens)
+6. [API reference](#6-api-reference)
+7. [Backend internals](#7-backend-internals)
+8. [Data model](#8-data-model)
+9. [Frontend](#9-frontend)
+10. [Setup & running](#10-setup--running)
+11. [Testing](#11-testing)
+12. [Key design decisions](#12-key-design-decisions)
+13. [Known limitations](#13-known-limitations)
+14. [Roadmap](#14-roadmap)
+
+---
+
+## 1. Overview
+
+Spend Tracker ingests bank-statement exports (CSV / XLS / XLSX), classifies every
+transaction, and turns them into a dashboard that answers three questions:
+
+1. **What are my major spends?**
+2. **What are my recurring spends?**
+3. **Are there hidden spends I'm not aware of?**
+
+The account being tracked is a **spending wallet** — a secondary account topped up
+from a salary account and used for day-to-day spends and investments. This shapes
+the entire model (see §2).
+
+**Core capabilities**
+
+| Capability | Description |
+|---|---|
+| Auto-ingestion | Drop a bank export into `backend/data/watched_folder/` — it ingests automatically |
+| Manual upload | Drag-and-drop import from the dashboard |
+| Multi-bank support | HDFC, ICICI, and a generic CSV fallback; Excel (XLS/XLSX) |
+| Smart classification | Auto-detects internal transfers (top-ups) and investments (§4) |
+| Auto-categorization | Keyword matching assigns categories (Food, Transport, …) |
+| Analytics | Wallet breakdown, category spend, weekly velocity, day-of-week heatmap, top merchants, recurring detection, insights |
+| Date filtering | This Month / Last Month / Last 30 Days / This Year / All Time + custom range clamped to your data |
+| Demo mode | Synthetic data for sharing without exposing real finances |
+| Deduplication | Two-level hash guards prevent double-ingestion |
+
+---
+
+## 2. The Wallet model (core concept)
+
+> **Most finance apps assume:** Income → Spend → Savings.
+> **This account works differently:** money is *loaded* in, some is *invested*, the rest is *spent*.
+
+```
+            ┌─────────────────────────────────────────┐
+            │              MONEY LOADED                │
+            │  (top-ups from salary a/c + any credits) │
+            └───────────────────┬─────────────────────┘
+          ┌─────────────────────┼─────────────────────┐
+          ▼                     ▼                     ▼
+   ┌────────────┐        ┌────────────┐        ┌────────────┐
+   │ INVESTED   │        │   SPENT    │        │  UNSPENT   │
+   │ Grip, SIPs │        │ real       │        │ sitting in │
+   │ Groww, MF  │        │ consumption│        │ the wallet │
+   └────────────┘        └────────────┘        └────────────┘
+```
+
+| Term | Definition |
+|---|---|
+| **Loaded** | All credits into the account (top-ups + salary + returns + refunds) |
+| **Top-ups** | Of loaded: self-transfers from your own salary account (`IMPS-…-<yourname>`) |
+| **Invested** | Debits to broking / MF / SIP platforms (Grip, Zerodha, Groww, INDSTOCKS…) |
+| **Spent** | Debits that are **not** investments — your actual consumption |
+| **Unspent** | `Loaded − Invested − Spent` — money still in the wallet |
+
+**Why it matters:** counting an ₹84k transfer to Grip as "spend," or a ₹1.95L
+salary top-up as "income," makes the dashboard lie. The wallet model keeps each
+rupee in the right bucket so "spent" means *actually consumed*.
+
+Concepts deliberately **absent** because they don't apply to this account type:
+savings rate, income stability, income diversification, monthly budgets.
+
+---
+
+## 3. Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                            Frontend                                  │
+│  React 19 + TypeScript + Vite + Tailwind + Recharts + TanStack Query │
+│  Pages: Dashboard · Transactions · Income · Categories              │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │ HTTP (proxied via Vite dev server, /api)
+┌──────────────────────────────▼──────────────────────────────────────┐
+│                            Backend                                   │
+│  FastAPI + SQLAlchemy + SQLite                                       │
+│  ┌─────────────────────────┐   ┌──────────────────────────────────┐  │
+│  │       REST API          │   │      Ingestion Pipeline          │  │
+│  │  /api/analytics/*       │   │  Parser Registry → Normalizer    │  │
+│  │  /api/transactions      │   │  (+ transfer/investment flags)   │  │
+│  │  /api/categories        │   │  → Categorizer → Dedup → SQLite  │  │
+│  │  /api/upload  /api/demo  │   └──────────────────────────────────┘  │
+│  └─────────────────────────┘                                         │
+│  File Watcher (watchdog) — monitors backend/data/watched_folder/     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+Project layout:
+```
+spend-tracker/
+├── backend/
+│   ├── src/app/        # application code (api, ingestion, models, utils…)
+│   ├── tests/          # pytest suite
+│   ├── data/           # SQLite db + watched_folder/
+│   ├── config/         # .env.example
+│   ├── scripts/run.py  # entrypoint
+│   └── pytest.ini      # adds src/ to pythonpath
+├── frontend/src/       # React app (pages, components, hooks, store)
+└── docs/               # this file + ROADMAP.md + wireframes/
+```
+
+---
+
+## 4. Smart classification (the flags)
+
+Every transaction carries two auto-detected boolean flags, set on import and
+back-fillable on existing data.
+
+### 4.1 `is_internal_transfer` — top-ups & self-transfers
+A credit is an internal transfer when the counterparty is **you** (your own name
+appears right after a transfer reference).
+
+- ✅ `IMPS-000000000000-YOURNAME-UTIB-…` → top-up (your own money)
+- ❌ `NEFT CR-…-EXAMPLE CORP-YOURNAM` → real income (you're only the beneficiary)
+
+Detector: `backend/src/app/utils/transfers.py` · names in `config.py` → `account_holder_names`
+(set these to your own name(s) — see `config/.env.example`)
+
+### 4.2 `is_investment` — wealth, not spend
+A debit is an investment when it goes to a broking/MF/SIP platform.
+
+- ✅ Any UPI handle containing `.BRK@` (`GRIPBROKING.CF.BRK@…`, `INDSTOCKS.ICCL1.BRK@…`)
+- ✅ Platform names: Grip, Zerodha, Groww, INDSTOCKS, Smallcase, Kuvera, Upstox, INDmoney…
+
+Detector: `backend/src/app/utils/investments.py` · keywords in `config.py` → `investment_keywords`
+
+### 4.3 How the flags affect analytics
+| Bucket | Internal transfers | Investments |
+|---|---|---|
+| **Spend** analytics (all `/analytics/*` except `/wallet`) | excluded | excluded |
+| **Wallet** view (`/analytics/wallet`) | counted as *Loaded* | counted as *Invested* |
+| **Transactions** list | shown, badged `↔ Internal`, muted | shown |
+
+---
+
+## 5. The screens
+
+Four pages, navigated from the top bar: **Dashboard · Transactions · Income · Categories**.
+
+### 5.1 Dashboard (`/`)
+Home overview. Adapts to the selected date range and shows the actual data window
+on top (e.g. "Showing 1 Jan 2026 – 24 May 2026"). If the period has no data, the
+page collapses to a single empty state — no empty tabs.
+
+- **Hero** — the wallet story: *You spent ₹X of ₹Y loaded · ₹Z invested · Unspent ₹W*, with a segmented `[Invested][Spent][Unspent]` bar.
+- **KPI strip** — Daily spend · Spend txns · Top category.
+- **Tab: Overview** — *Where your money went* (category breakdown) + *Insights*.
+- **Tab: Patterns & Trends** — Weekly spend velocity · Day-of-week heatmap · Top merchants · Recurring transactions.
+- **Date control** — preset pills + a Custom Range picker pre-filled with and clamped to your real data bounds.
+
+### 5.2 Transactions (`/transactions`)
+The source of truth — filterable, paginated table of every transaction.
+- Filter by date range, category, type (debit/credit).
+- Inline category change per row.
+- Internal transfers badged `↔ Internal` with a muted amount.
+
+### 5.3 Income (`/income`)
+> ⚠️ Built for variable/freelance income (stability score, expected-vs-actual,
+> diversification, savings trajectory). For a salaried-funded spending wallet these
+> are largely **not meaningful** — real income lands in the salary account. Slated
+> to be replaced by a Wallet view (§14).
+
+### 5.4 Categories (`/categories`)
+Two-panel manager — list on the left (auto-selects first, never empty), editor on
+the right. Edit name, colour, and the **keyword rules** that drive
+auto-categorisation; create / delete categories. Changes invalidate the
+categorisation cache and apply to future imports.
+
+---
+
+## 6. API reference
+
+Base URL `/api` (Vite proxies to `http://localhost:8000` in dev). Analytics
+endpoints accept `mode=real|demo` and optional `start_date` / `end_date` (ISO).
+
+### Analytics — `/api/analytics/*`
+| Endpoint | Returns |
+|---|---|
+| `GET /wallet` | **Loaded / Top-ups / Invested / Spent / Unspent** (the wallet model) |
+| `GET /summary` | Total spend, total credits, daily average, top category, txn count |
+| `GET /by-day` · `/by-week` · `/by-month` · `/by-year` | Spend time-series |
+| `GET /by-category` | Spend per category with % share |
+| `GET /weekly-velocity` | Per-week spend + week-over-week % change |
+| `GET /heatmap` | Avg spend by day-of-week × week-of-month |
+| `GET /top-merchants` | Top payees by spend, with count + avg/txn |
+| `GET /recurring` | Auto-detected recurring payments + next-due estimate |
+| `GET /income-monthly` · `/income-sources` · `/savings-trajectory` | Income views (see §5.3 caveat) |
+| `GET /insights` | Plain-English spending insights |
+
+> Every endpoint except `/wallet` reports **real consumption only** — internal
+> transfers and investments are excluded.
+
+### Transactions — `/api/transactions`
+| Endpoint | Purpose |
+|---|---|
+| `GET ""` | Paginated list; filters: `mode`, `start_date`, `end_date`, `category_id`, `transaction_type`, `page`, `page_size` |
+| `PATCH /{id}/category` | Re-assign a transaction's category |
+| `DELETE /{id}` | Delete a transaction |
+
+### Categories — `/api/categories`
+`GET ""` · `POST ""` · `PATCH /{id}` · `DELETE /{id}`
+
+### Upload / Demo / Health
+- `POST /api/upload` (multipart, `?mode=real|demo`) → runs ingestion; `GET /api/ingest-log[/{id}]`
+- `POST /api/demo/generate` · `DELETE /api/demo/clear`
+- `GET /health` → `{"status": "ok"}`
+
+Interactive API docs (Swagger) at `http://localhost:8000/docs`.
+
+---
+
+## 7. Backend internals
+
+Stack: **Python 3.9+**, **FastAPI**, **SQLAlchemy**, **SQLite**, **Pydantic**,
+**watchdog**, **openpyxl/xlrd**.
+
+### Ingestion pipeline
+```
+File (CSV/XLS/XLSX)
+   → Parser Registry   (tries HDFC → ICICI → XLSX → generic CSV)
+   → RawTransaction[]  (bank-specific fields, raw strings)
+   → Normalizer        (standard schema; sets is_internal_transfer + is_investment)
+   → Categorizer       (keyword match → category_id)
+   → Dedup guard       (SHA-256 row hash UNIQUE)
+   → SQLite
+```
+Entry points: the file watcher and the upload API both funnel into the same pipeline.
+
+### Parser registry & adding a bank
+Each parser implements `can_parse(filepath, headers)` and `parse(filepath)`
+(`app/ingestion/base.py`). The registry tries parsers in priority order — specific
+banks first, generic fallback last — so adding a bank needs only a new file:
+1. Create `backend/src/app/ingestion/csv_parsers/yourbank.py`
+2. Subclass `BaseParser`; implement `can_parse()` (inspect unique column headers) and `parse()`
+3. Register it in `ingestion/registry.py` **before** `GenericCsvParser`
+
+### Categorization engine
+`app/categorization/` — categories + keyword lists seeded from `rules.py` at
+startup. The engine lowercases the description and matches keyword lists in order;
+first match wins, unmatched → **Uncategorized**. Editable at runtime via the
+Categories API (cache invalidated on change).
+
+### File watcher
+`app/watcher/file_watcher.py` uses `watchdog` to monitor
+`backend/data/watched_folder/`; new files auto-ingest. Formats: `.csv`, `.xlsx`, `.xls`.
+
+### Demo mode
+`app/demo/generator.py` creates synthetic transactions under `data_mode='demo'`.
+Every query takes `?mode=demo|real` → a `WHERE data_mode = ?` clause; the server
+is stateless. The frontend Zustand store includes `mode` in every query key.
+
+### Deduplication
+- **File hash** — SHA-256 of the file in `ingest_log`; re-ingesting a file is a no-op.
+- **Row hash** — SHA-256 of `(date, amount, description)` as a UNIQUE constraint;
+  overlapping date-range exports skip duplicates silently.
+
+---
+
+## 8. Data model
+
+**`transactions`**
+| Column | Notes |
+|---|---|
+| `id` | PK |
+| `date` | transaction date |
+| `amount` | always positive |
+| `transaction_type` | `debit` / `credit` |
+| `description` / `raw_description` | cleaned / original payee |
+| `category_id` | FK → categories (null = Uncategorized) |
+| `source` | parser that produced it |
+| `data_mode` | `real` / `demo` |
+| `is_internal_transfer` | top-up / self-transfer flag (§4.1) |
+| `is_investment` | investment-outflow flag (§4.2) |
+| `file_hash` / `row_hash` | dedup guards (SHA-256) |
+| `created_at` | timestamp |
+
+**`categories`** — `id · name · color · keywords_json`
+**`ingest_log`** — `id · filename · file_hash · parser_used · rows_parsed/inserted/skipped · status · error_message · ingested_at`
+
+---
+
+## 9. Frontend
+
+Stack: **React 19 + TypeScript + Vite + Tailwind CSS + Recharts + TanStack Query v5 + Zustand + React Router**.
+
+**Pages:** `Dashboard.tsx`, `Transactions.tsx`, `Income.tsx`, `Categories.tsx`.
+
+**Key components:** `layout/TopBar` + `Layout` (shell + nav), `dashboard/DateRangeFilter`,
+`transactions/TransactionTable` + `CategoryBadge`, `upload/FileUploadModal`,
+`shared/DemoModeToggle` + `LoadingSpinner`, chart components in `charts/`.
+
+**State:** server state via TanStack Query (cache keys include `mode` so toggling
+demo mode refetches automatically); `store/demoMode.ts` (Zustand) holds the
+real/demo toggle. Data hooks live in `hooks/useAnalytics.ts`,
+`hooks/useTransactions.ts`, `hooks/useCategories.ts`. Axios client (`api/client.ts`)
+points at the `/api` Vite proxy.
+
+---
+
+## 10. Setup & running
+
+Prerequisites: Python 3.9+, Node.js 18+.
+
+```bash
+# Backend → http://localhost:8000  (Swagger at /docs)
+cd backend
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+PYTHONPATH=src python scripts/run.py
+
+# Frontend → http://localhost:5173 (or next free port, e.g. 5174)
+cd frontend
+npm install
+npm run dev
+
+# Optional: generate demo data
+curl -X POST http://localhost:8000/api/demo/generate
+```
+
+---
+
+## 11. Testing
+
+```bash
+cd backend && python -m pytest -q     # 22 passing
+```
+- `test_ingestion.py` — parser registry, normalizer, dedup, internal-transfer detection
+- `test_api.py` — API integration tests (in-memory SQLite)
+
+`pytest.ini` adds `src/` to `pythonpath` automatically.
+
+---
+
+## 12. Key design decisions
+
+- **Wallet model over income model** — loaded/invested/spent buckets, not income/savings (§2).
+- **Classification flags** — `is_internal_transfer` and `is_investment` keep top-ups and wealth out of "spend" (§4).
+- **Parser registry pattern** — bank logic is isolated; the registry is the only place that knows which parsers exist.
+- **Amount always positive** — `transaction_type` carries direction; avoids signed-amount bugs in `SUM()`.
+- **`data_mode` everywhere** — real and demo coexist in one DB; switching is a single `WHERE`; server stays stateless.
+- **Two-level dedup** — file-hash skips processed files; row-hash UNIQUE handles overlapping exports.
+- **React Query keys include `mode`** — toggling demo mode invalidates and refetches everything.
+
+---
+
+## 13. Known limitations
+
+From the June 2026 data audit — these shape what the dashboard can show today:
+1. **~72% of spend is Uncategorized** — the keyword categorizer only catches big brands; most Indian UPI spend (individuals, local merchants) falls through. → planned: bulk-categorize queue.
+2. **Merchant fragmentation** — `SWIGGY / SWIGGY LTD / SWIGGY LIMITED / SWIGGY INSTAMART` count as four merchants, hiding the true total. → planned: merchant normalization.
+3. **Large one-off merchant payments** (e.g. a single ~₹35k merchant charge) need a human label — the data can't tell what was bought.
+4. **Income page** metrics aren't meaningful for this account type (§5.3).
+
+---
+
+## 14. Roadmap
+
+| Priority | Item |
+|---|---|
+| 🔴 P0 | Bulk-categorize queue — clear the 72% uncategorized fast |
+| 🔴 P0 | Merchant normalization (collapse brand variants) |
+| 🟠 P1 | "Big purchases — identify these" strip for large one-offs |
+| 🟠 P1 | Committed-monthly-outflow number (subscriptions + SIPs) |
+| 🟢 | Replace Income page with a Wallet view |
+| 🟢 | Net-worth / investments-growth view |
+
+Full backlog in [ROADMAP.md](ROADMAP.md) (also tracked in Linear).

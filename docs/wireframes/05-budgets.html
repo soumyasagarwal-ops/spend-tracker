@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spend Tracker — Budgets</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+
+    .topbar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .logo { font-size: 15px; font-weight: 700; color: #4f46e5; display: flex; align-items: center; gap: 8px; }
+    .logo-icon { width: 28px; height: 28px; background: #4f46e5; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .logo-icon svg { width: 16px; height: 16px; fill: #fff; }
+    .topbar-nav { display: flex; align-items: center; gap: 4px; }
+    .nav-link { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; text-decoration: none; }
+    .nav-link.active { background: #eef2ff; color: #4f46e5; }
+
+    .page { max-width: 1200px; margin: 0 auto; padding: 28px 28px 60px; }
+    .back-link { font-size: 12px; color: #94a3b8; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 20px; }
+    .back-link:hover { color: #4f46e5; }
+
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-size: 20px; font-weight: 700; color: #0f172a; }
+    .page-sub { font-size: 12px; color: #94a3b8; margin-bottom: 20px; }
+    .btn-primary { padding: 9px 18px; background: #4f46e5; color: #fff; font-size: 13px; font-weight: 600; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 6px; border: none; }
+
+    .roadmap-note { margin-bottom: 20px; padding: 10px 14px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; font-size: 11px; color: #92400e; }
+
+    /* Summary top row */
+    .summary-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 22px; }
+    .sum-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; }
+    .sum-label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+    .sum-value { font-size: 22px; font-weight: 700; color: #0f172a; }
+    .sum-sub { font-size: 11px; margin-top: 3px; }
+
+    /* Month selector */
+    .month-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+    .month-btn { width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 14px; }
+    .month-label { font-size: 14px; font-weight: 600; color: #0f172a; }
+
+    /* Budget cards grid */
+    .budget-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .budget-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; }
+    .budget-card.over { border-color: #fca5a5; background: #fff5f5; }
+    .budget-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .budget-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .budget-name { font-size: 14px; font-weight: 600; color: #0f172a; flex: 1; }
+    .budget-edit { width: 26px; height: 26px; border-radius: 7px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 13px; }
+    .budget-edit:hover { background: #f1f5f9; }
+    .budget-amounts { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; }
+    .budget-spent { font-weight: 600; color: #0f172a; }
+    .budget-limit { color: #64748b; }
+    .progress-track { height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+    .progress-fill { height: 100%; border-radius: 4px; }
+    .budget-meta { display: flex; justify-content: space-between; font-size: 11px; }
+    .budget-pct { font-weight: 600; }
+    .budget-remaining { color: #64748b; }
+    .over-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #fee2e2; color: #dc2626; border-radius: 20px; font-size: 10px; font-weight: 700; }
+
+    /* Projected spend card */
+    .projected-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 22px; margin-top: 16px; }
+    .projected-title { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 14px; }
+    .proj-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .proj-label { font-size: 12px; color: #475569; width: 110px; flex-shrink: 0; }
+    .proj-track { flex: 1; height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; position: relative; }
+    .proj-fill-actual { position: absolute; left: 0; top: 0; height: 100%; border-radius: 3px; }
+    .proj-fill-proj { position: absolute; top: 0; height: 100%; border-radius: 3px; opacity: 0.4; }
+    .proj-val { font-size: 12px; font-weight: 600; color: #0f172a; width: 70px; text-align: right; flex-shrink: 0; }
+    .proj-projected-val { font-size: 11px; color: #94a3b8; width: 70px; text-align: right; flex-shrink: 0; }
+    .proj-legend { display: flex; gap: 16px; font-size: 11px; color: #64748b; margin-top: 4px; }
+    .proj-legend span { display: flex; align-items: center; gap: 5px; }
+    .legend-bar { display: inline-block; width: 16px; height: 4px; border-radius: 2px; }
+
+    @media (max-width: 700px) {
+      .budget-grid { grid-template-columns: 1fr; }
+      .summary-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6H9l3-6 3 6h-2v6z"/></svg></div>
+      SpendTracker
+    </div>
+    <nav class="topbar-nav">
+      <a class="nav-link" href="v1-dashboard-deep.html">Dashboard</a>
+      <a class="nav-link" href="02-transactions.html">Transactions</a>
+      <a class="nav-link" href="v1-income-deep.html">Income</a>
+      <a class="nav-link active" href="05-budgets.html">Budgets</a>
+      <a class="nav-link" href="04-categories.html">Categories</a>
+    </nav>
+    <div></div>
+  </div>
+
+  <div class="page">
+    <a class="back-link" href="index.html">← All wireframes</a>
+    <div class="page-header">
+      <div>
+        <div class="page-title">Budgets</div>
+      </div>
+      <button class="btn-primary">+ Set Budget</button>
+    </div>
+    <div class="page-sub">Monthly spending limits by category. Projections based on current pace.</div>
+    <div class="roadmap-note">📌 Roadmap v1.4 — not yet built. This wireframe shows the planned UI.</div>
+
+    <!-- Month nav -->
+    <div class="month-nav">
+      <button class="month-btn">‹</button>
+      <span class="month-label">May 2026</span>
+      <button class="month-btn">›</button>
+      <span style="font-size:12px;color:#94a3b8;margin-left:4px">(current month)</span>
+    </div>
+
+    <!-- Summary row -->
+    <div class="summary-row">
+      <div class="sum-card">
+        <div class="sum-label">Total budgeted</div>
+        <div class="sum-value">₹55,000</div>
+        <div class="sum-sub" style="color:#64748b">across 6 categories</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-label">Spent so far</div>
+        <div class="sum-value">₹42,840</div>
+        <div class="sum-sub" style="color:#d97706">78% of total budget used</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-label">Projected month-end</div>
+        <div class="sum-value">₹51,200</div>
+        <div class="sum-sub" style="color:#059669">Within budget by ₹3,800</div>
+      </div>
+    </div>
+
+    <!-- Budget cards -->
+    <div class="budget-grid">
+
+      <div class="budget-card over">
+        <div class="budget-header">
+          <div class="budget-dot" style="background:#4f46e5"></div>
+          <div class="budget-name">Food</div>
+          <span class="over-badge">⚠ Over budget</span>
+          <button class="budget-edit">✎</button>
+        </div>
+        <div class="budget-amounts">
+          <span class="budget-spent">₹9,425 spent</span>
+          <span class="budget-limit">of ₹8,000 limit</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:100%;background:#ef4444"></div>
+        </div>
+        <div class="budget-meta">
+          <span class="budget-pct" style="color:#ef4444">118% — ₹1,425 over</span>
+        </div>
+      </div>
+
+      <div class="budget-card">
+        <div class="budget-header">
+          <div class="budget-dot" style="background:#06b6d4"></div>
+          <div class="budget-name">Transport</div>
+          <button class="budget-edit" style="margin-left:auto">✎</button>
+        </div>
+        <div class="budget-amounts">
+          <span class="budget-spent">₹7,711 spent</span>
+          <span class="budget-limit">of ₹10,000 limit</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:77%;background:#06b6d4"></div>
+        </div>
+        <div class="budget-meta">
+          <span class="budget-pct" style="color:#06b6d4">77%</span>
+          <span class="budget-remaining">₹2,289 remaining</span>
+        </div>
+      </div>
+
+      <div class="budget-card">
+        <div class="budget-header">
+          <div class="budget-dot" style="background:#10b981"></div>
+          <div class="budget-name">Groceries</div>
+          <button class="budget-edit" style="margin-left:auto">✎</button>
+        </div>
+        <div class="budget-amounts">
+          <span class="budget-spent">₹6,426 spent</span>
+          <span class="budget-limit">of ₹9,000 limit</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:71%;background:#10b981"></div>
+        </div>
+        <div class="budget-meta">
+          <span class="budget-pct" style="color:#10b981">71%</span>
+          <span class="budget-remaining">₹2,574 remaining</span>
+        </div>
+      </div>
+
+      <div class="budget-card">
+        <div class="budget-header">
+          <div class="budget-dot" style="background:#f59e0b"></div>
+          <div class="budget-name">Shopping</div>
+          <button class="budget-edit" style="margin-left:auto">✎</button>
+        </div>
+        <div class="budget-amounts">
+          <span class="budget-spent">₹5,998 spent</span>
+          <span class="budget-limit">of ₹8,000 limit</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:75%;background:#f59e0b"></div>
+        </div>
+        <div class="budget-meta">
+          <span class="budget-pct" style="color:#f59e0b">75%</span>
+          <span class="budget-remaining">₹2,002 remaining</span>
+        </div>
+      </div>
+
+      <div class="budget-card">
+        <div class="budget-header">
+          <div class="budget-dot" style="background:#8b5cf6"></div>
+          <div class="budget-name">Utilities</div>
+          <button class="budget-edit" style="margin-left:auto">✎</button>
+        </div>
+        <div class="budget-amounts">
+          <span class="budget-spent">₹5,141 spent</span>
+          <span class="budget-limit">of ₹6,000 limit</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:86%;background:#8b5cf6"></div>
+        </div>
+        <div class="budget-meta">
+          <span class="budget-pct" style="color:#8b5cf6">86%</span>
+          <span class="budget-remaining">₹859 remaining</span>
+        </div>
+      </div>
+
+      <div class="budget-card">
+        <div class="budget-header">
+          <div class="budget-dot" style="background:#ef4444"></div>
+          <div class="budget-name">Health</div>
+          <button class="budget-edit" style="margin-left:auto">✎</button>
+        </div>
+        <div class="budget-amounts">
+          <span class="budget-spent">₹3,820 spent</span>
+          <span class="budget-limit">of ₹5,000 limit</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:76%;background:#ef4444"></div>
+        </div>
+        <div class="budget-meta">
+          <span class="budget-pct" style="color:#ef4444">76%</span>
+          <span class="budget-remaining">₹1,180 remaining</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Projected spend -->
+    <div class="projected-card">
+      <div class="projected-title">Projected month-end spend by category</div>
+      <div class="proj-row">
+        <div class="proj-label">Food</div>
+        <div class="proj-track">
+          <div class="proj-fill-actual" style="background:#4f46e5;width:100%;left:0"></div>
+          <div class="proj-fill-proj" style="background:#ef4444;width:12%;left:88%"></div>
+        </div>
+        <div class="proj-val" style="color:#ef4444">₹11,200</div>
+      </div>
+      <div class="proj-row">
+        <div class="proj-label">Transport</div>
+        <div class="proj-track">
+          <div class="proj-fill-actual" style="background:#06b6d4;width:77%"></div>
+          <div class="proj-fill-proj" style="background:#06b6d4;width:10%;left:77%"></div>
+        </div>
+        <div class="proj-val" style="color:#059669">₹9,100</div>
+      </div>
+      <div class="proj-row">
+        <div class="proj-label">Groceries</div>
+        <div class="proj-track">
+          <div class="proj-fill-actual" style="background:#10b981;width:71%"></div>
+          <div class="proj-fill-proj" style="background:#10b981;width:9%;left:71%"></div>
+        </div>
+        <div class="proj-val" style="color:#059669">₹7,400</div>
+      </div>
+      <div class="proj-legend">
+        <span><span class="legend-bar" style="background:#4f46e5"></span>Actual (to date)</span>
+        <span><span class="legend-bar" style="background:#94a3b8;opacity:.5"></span>Projected remainder</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
